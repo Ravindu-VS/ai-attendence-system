@@ -4,6 +4,7 @@ export interface AuthFormProps {
     email: string;
     password: string;
     name?: string;
+    faceData?: string[];
   };
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   error?: string;
@@ -30,4 +31,9 @@ export interface DashboardProps {
   currentTime: Date;
   currentPage: string;
   onPageChange: (page: string) => void;
+}
+
+export interface StepProps {
+  currentStep: number;
+  totalSteps: number;
 }

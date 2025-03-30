@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, Users, CheckCircle, XCircle, Camera } from 'lucide-react';
+import { Calendar, Clock, Users, CheckCircle, XCircle } from 'lucide-react';
 import Webcam from 'react-webcam';
 
 export const AttendancePage: React.FC = () => {

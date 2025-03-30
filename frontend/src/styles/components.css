@@ -48,6 +48,48 @@
     @apply w-full pl-10 pr-4 py-2 rounded-xl bg-card border border-primary/10;
   }
 
+  /* Face Capture Components */
+  .face-capture-container {
+    @apply relative w-64 h-64 mx-auto rounded-full overflow-hidden border-4 border-primary/30;
+  }
+
+  .face-capture-frame {
+    @apply absolute top-0 left-0 w-full h-full;
+  }
+
+  .face-capture-overlay {
+    @apply absolute top-0 left-0 w-full h-full border-8 border-primary/20 rounded-full;
+  }
+
+  .face-capture-progress {
+    @apply absolute top-0 left-0 w-full h-full;
+  }
+
+  .face-capture-progress circle {
+    @apply transition-all duration-300 ease-in-out;
+    stroke-linecap: round;
+    transform-origin: center;
+    transform: rotate(-90deg);
+  }
+
+  .face-guidance {
+    @apply text-center text-sm text-foreground/80 bg-card p-3 rounded-xl mt-4;
+  }
+
+  .scanner-line {
+    @apply absolute top-0 left-0 w-full h-1 bg-primary/50;
+    animation: scan 2s linear infinite;
+  }
+
+  @keyframes scan {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(100%);
+    }
+  }
+
   /* Table Components */
   .data-table {
     @apply w-full border-collapse;
@@ -123,6 +165,23 @@
     @apply h-full bg-primary transition-all duration-300;
   }
 
+  /* Step Indicators */
+  .step-indicator {
+    @apply flex justify-center space-x-2 mb-6;
+  }
+
+  .step-dot {
+    @apply h-2 w-2 rounded-full transition-all duration-300;
+  }
+
+  .step-dot-active {
+    @apply bg-primary;
+  }
+
+  .step-dot-inactive {
+    @apply bg-foreground/20;
+  }
+
   /* Avatar Components */
   .avatar {
     @apply rounded-full overflow-hidden;
@@ -138,5 +197,33 @@
 
   .avatar-lg {
     @apply w-16 h-16;
+  }
+
+  /* Button Styles */
+  .btn-modern {
+    @apply flex items-center justify-center px-6 py-2 rounded-xl bg-primary text-white 
+           transition-all duration-300 hover:bg-primary/90 active:scale-95;
+  }
+
+  .btn-outline-modern {
+    @apply flex items-center justify-center px-6 py-2 rounded-xl border border-primary/30 
+           text-primary transition-all duration-300 hover:bg-primary/10 active:scale-95;
+  }
+
+  /* Glassmorphism */
+  .glassmorphism {
+    @apply backdrop-blur-md bg-white/5 border border-white/10;
+  }
+
+  /* Cyber Grid */
+  .cyber-grid {
+    background-image: linear-gradient(to right, rgba(var(--primary-rgb), 0.1) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(var(--primary-rgb), 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Gradient Text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary;
   }
 }

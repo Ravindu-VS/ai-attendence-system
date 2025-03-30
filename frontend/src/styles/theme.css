@@ -16,6 +16,20 @@
     --card-hover: 230 35% 15%;
     --muted: 217 33% 17%;
     --muted-hover: 217 33% 20%;
+
+    /* RGB values for gradients and overlays */
+    --primary-rgb: 43, 209, 176;
+    --secondary-rgb: 149, 76, 233;
+    --accent-rgb: 219, 39, 119;
+    --success-rgb: 34, 197, 94;
+    --error-rgb: 239, 68, 68;
+
+    /* Face capture specific colors */
+    --capture-border: 170 75% 41%;
+    --capture-progress: 170 75% 41%;
+    --capture-overlay: 230 35% 11% / 0.5;
+    --capture-success: 142 76% 36%;
+    --capture-guide: 216 33% 97% / 0.8;
   }
 
   .light {
@@ -31,9 +45,24 @@
     --card-hover: 216 33% 92%;
     --muted: 217 33% 97%;
     --muted-hover: 217 33% 92%;
+
+    /* RGB values for light mode */
+    --primary-rgb: 43, 209, 176;
+    --secondary-rgb: 149, 76, 233;
+    --accent-rgb: 219, 39, 119;
+    --success-rgb: 34, 197, 94;
+    --error-rgb: 239, 68, 68;
+
+    /* Face capture specific colors for light mode */
+    --capture-border: 170 75% 41%;
+    --capture-progress: 170 75% 41%;
+    --capture-overlay: 216 33% 97% / 0.5;
+    --capture-success: 142 76% 36%;
+    --capture-guide: 230 35% 7% / 0.8;
   }
 }
 
+/* Base styles */
 body {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: hsl(var(--background));
@@ -41,4 +70,76 @@ body {
   min-height: 100vh;
   line-height: 1.5;
   overflow-x: hidden;
+}
+
+/* Gradient backgrounds */
+.gradient-border {
+  background: linear-gradient(
+    45deg,
+    hsl(var(--primary)),
+    hsl(var(--secondary))
+  );
+}
+
+.gradient-text {
+  background: linear-gradient(
+    to right,
+    hsl(var(--primary)),
+    hsl(var(--secondary))
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Glassmorphism effects */
+.glassmorphism {
+  backdrop-filter: blur(12px);
+  background: linear-gradient(
+    to bottom right,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.02)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Animation classes */
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Button glow effect */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-glow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: 0.5s;
+}
+
+.btn-glow:hover::before {
+  left: 100%;
 }

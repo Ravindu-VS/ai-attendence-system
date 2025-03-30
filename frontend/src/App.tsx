@@ -26,7 +26,8 @@ function App() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    name: ''
+    name: '',
+    faceData: [] as string[]
   });
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,7 +43,7 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
 
@@ -58,13 +59,24 @@ function App() {
         setAuthError('Invalid credentials');
       }
     } else {
-      setIsAuthenticated(true);
-      const newUser = {
-        email: formData.email,
-        name: formData.name,
-        password: formData.password
-      };
-      localStorage.setItem('user', JSON.stringify(newUser));
+      try {
+        // In a real application, you would send the face data to the server here
+        // for processing and storage
+        console.log('Face data frames captured:', formData.faceData.length);
+        
+        setIsAuthenticated(true);
+        const newUser = {
+          email: formData.email,
+          name: formData.name,
+          password: formData.password,
+          // Store a reference or hash of the face data
+          hasFaceData: true
+        };
+        localStorage.setItem('user', JSON.stringify(newUser));
+      } catch (error) {
+        setAuthError('Error during registration. Please try again.');
+        console.error('Registration error:', error);
+      }
     }
   };
 
@@ -75,10 +87,23 @@ function App() {
     }));
   };
 
+  const handleFaceDataCapture = (faceDataFrames: string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      faceData: faceDataFrames
+    }));
+  };
+
   const handleSignOut = () => {
     setIsAuthenticated(false);
     localStorage.removeItem('user');
     setCurrentPage('dashboard');
+    setFormData({
+      email: '',
+      password: '',
+      name: '',
+      faceData: []
+    });
   };
 
   if (!isAuthenticated) {

@@ -1,123 +1,332 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, User, Calendar, Activity } from 'lucide-react';
-import '../styles/SignupPage.css'; // Correct relative path to the CSS file
+import { Activity, Mail, Lock, User, Camera, RotateCw, Save, AlertCircle, Smartphone } from 'lucide-react';
+import { AuthFormProps } from '../types';
+import Webcam from 'react-webcam';
 
-interface SignupFormData {
-  name: string;
-  registrationNumber: string;
-  intake: string;
-  stream: string;
-  address: string;
-  contactNumber: string;
-  dob: string;
-  video: File | null;
+const REQUIRED_FRAMES = 30;
+const CAPTURE_INTERVAL = 500;
+const IS_DEV_MODE = import.meta.env.DEV;
+
+interface StepProps {
+  currentStep: number;
+  totalSteps: number;
 }
 
-export const SignupPage = () => {
-  const [formData, setFormData] = useState<SignupFormData>({
-    name: '',
-    registrationNumber: '',
-    intake: '',
-    stream: '',
-    address: '',
-    contactNumber: '',
-    dob: '',
-    video: null,
-  });
+const ProgressSteps: React.FC<StepProps> = ({ currentStep, totalSteps }) => {
+  return (
+    <div className="flex justify-center space-x-2 mb-6">
+      {Array.from({ length: totalSteps }).map((_, index) => (
+        <div
+          key={index}
+          className={`h-2 w-2 rounded-full transition-all duration-300 ${
+            index < currentStep ? 'bg-primary' : 'bg-foreground/20'
+          }`}
+        />
+      ))}
+    </div>
+  );
+};
 
-  const [step, setStep] = useState(1); // Track the current step
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [signupError, setSignupError] = useState('');
-  const [instructions, setInstructions] = useState('Please move your head around to capture all angles.');
-  const [capturedVideo, setCapturedVideo] = useState<Blob | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [isFaceDetected, setIsFaceDetected] = useState(false);
-  const [showCaptureButton, setShowCaptureButton] = useState(true);
+export const SignupPage: React.FC<AuthFormProps> = ({
+  onSubmit,
+  formData,
+  onInputChange,
+  error,
+  onToggleMode,
+}) => {
+  const [step, setStep] = useState(1);
+  const [capturedFrames, setCapturedFrames] = useState(0);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [faceData, setFaceData] = useState<string[]>([]);
+  const [guidanceMessage, setGuidanceMessage] = useState('Position your face in the circle');
+  const [webcamError, setWebcamError] = useState<string | null>(null);
+  const webcamRef = useRef<Webcam>(null);
+  const captureIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
-  // Handle input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const guidanceMessages = [
+    'Look straight at the camera',
+    'Slowly turn your head to the left',
+    'Slowly turn your head to the right',
+    'Tilt your head up slightly',
+    'Tilt your head down slightly',
+    'Almost done! One final straight look',
+  ];
+
+  useEffect(() => {
+    if (isCapturing) {
+      const messageIndex = Math.floor((capturedFrames / REQUIRED_FRAMES) * guidanceMessages.length);
+      setGuidanceMessage(guidanceMessages[messageIndex] || guidanceMessages[guidanceMessages.length - 1]);
+    }
+  }, [capturedFrames, isCapturing]);
+
+  useEffect(() => {
+    return () => {
+      if (captureIntervalRef.current) {
+        clearInterval(captureIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const handleWebcamError = (error: string | DOMException) => {
+    console.error('Webcam error:', error);
+    const errorMessage = error instanceof DOMException 
+      ? error.message 
+      : typeof error === 'string' 
+        ? error 
+        : 'Unable to access camera';
+    setWebcamError(`Unable to access camera: ${errorMessage}. Please ensure camera permissions are granted.`);
+    setIsCapturing(false);
   };
 
-  const handleStartCamera = async () => {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-        setIsRecording(true);
-        setShowCaptureButton(false); // Hide the capture button after starting the camera
-        setInstructions('Please move your head around to capture all angles.');
-        captureFaceData(); // Start capturing face data after camera is active
-      } catch (error) {
-        console.error('Error accessing webcam:', error);
-        alert('Unable to access camera');
+  const startCapturing = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (stream) {
+        setWebcamError(null);
+        setIsCapturing(true);
+        setCapturedFrames(0);
+        setFaceData([]);
+
+        captureIntervalRef.current = setInterval(() => {
+          if (webcamRef.current) {
+            const frame = webcamRef.current.getScreenshot();
+            if (frame) {
+              setFaceData(prev => [...prev, frame]);
+              setCapturedFrames(prev => {
+                const newCount = prev + 1;
+                if (newCount >= REQUIRED_FRAMES) {
+                  stopCapturing();
+                }
+                return newCount;
+              });
+            }
+          }
+        }, CAPTURE_INTERVAL);
       }
+    } catch (error) {
+      handleWebcamError(error as string | DOMException);
     }
   };
 
-  const captureFaceData = () => {
-    let counter = 0;
+  const stopCapturing = () => {
+    if (captureIntervalRef.current) {
+      clearInterval(captureIntervalRef.current);
+    }
+    setIsCapturing(false);
+    setGuidanceMessage('Face data captured successfully!');
+  };
+
+  const retakeCapture = () => {
+    setCapturedFrames(0);
+    setFaceData([]);
+    setGuidanceMessage('Position your face in the circle');
+    startCapturing();
+  };
+
+  const simulateCapture = () => {
+    setWebcamError(null);
+    setIsCapturing(true);
+    let count = 0;
     const interval = setInterval(() => {
-      if (counter < 100) {
-        setProgress(counter);
-        counter += 1;
-      } else {
-        setIsFaceDetected(true);
+      count++;
+      setCapturedFrames(count);
+      if (count >= REQUIRED_FRAMES) {
         clearInterval(interval);
-        setInstructions('Face data captured! You can save or retake.');
-        setIsRecording(false);
+        setIsCapturing(false);
+        setGuidanceMessage('Face data captured successfully!');
       }
-    }, 100); // Update every 100ms to simulate capture
+    }, 100);
   };
 
-  const handleCaptureVideo = () => {
-    setInstructions('Video captured successfully! You can either save or retake the video.');
-    setCapturedVideo(new Blob());
-    setIsRecording(false);
-  };
-
-  const handleRetakeVideo = () => {
-    setIsRecording(true);
-    setInstructions('Please move your head around to capture all angles.');
-    setCapturedVideo(null);
-    setProgress(0); // Reset progress bar
-    setIsFaceDetected(false);
-    setShowCaptureButton(true);
-  };
-
-  const handleNextStep = () => {
-    setStep((prevStep) => prevStep + 1);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
-    const formDataToSend = new FormData();
-    formDataToSend.append('name', formData.name);
-    formDataToSend.append('registrationNumber', formData.registrationNumber);
-    formDataToSend.append('intake', formData.intake);
-    formDataToSend.append('stream', formData.stream);
-    formDataToSend.append('address', formData.address);
-    formDataToSend.append('contactNumber', formData.contactNumber);
-    formDataToSend.append('dob', formData.dob);
-    if (capturedVideo) formDataToSend.append('video', capturedVideo);
-
-    const response = await fetch('http://localhost:5000/signup', {
-      method: 'POST',
-      body: formDataToSend,
-    });
-
-    if (response.ok) {
-      alert('User registered successfully');
+    if (step < 4) {
+      setStep(step + 1);
     } else {
-      setSignupError('Error during sign-up');
+      onSubmit(e);
+    }
+  };
+
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground/80">Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-foreground/60" />
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  value={formData.name}
+                  onChange={onInputChange}
+                  className="w-full bg-card pl-10 pr-4 py-2 rounded-xl border border-primary/10 focus:border-primary/30 focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                  placeholder="Enter your name"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground/80">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-foreground/60" />
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  value={formData.email}
+                  onChange={onInputChange}
+                  className="w-full bg-card pl-10 pr-4 py-2 rounded-xl border border-primary/10 focus:border-primary/30 focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                  placeholder="Enter your email"
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground/80">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-foreground/60" />
+                <input
+                  type="password"
+                  name="password"
+                  required
+                  value={formData.password}
+                  onChange={onInputChange}
+                  className="w-full bg-card pl-10 pr-4 py-2 rounded-xl border border-primary/10 focus:border-primary/30 focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                  placeholder="Enter your password"
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-4">
+            <div className="relative w-64 h-64 mx-auto rounded-full overflow-hidden border-4 border-primary/30">
+              {webcamError ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-error/10 text-error text-center p-4">
+                  <div>
+                    <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+                    {webcamError}
+                    {IS_DEV_MODE && (
+                      <div className="mt-4">
+                        <button
+                          onClick={simulateCapture}
+                          className="btn-modern text-sm"
+                        >
+                          <Smartphone className="w-4 h-4 mr-2" />
+                          Simulate Camera (Dev Mode)
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <Webcam
+                    ref={webcamRef}
+                    audio={false}
+                    screenshotFormat="image/jpeg"
+                    onUserMediaError={handleWebcamError}
+                    className="absolute top-0 left-0 w-full h-full object-cover transform scale-x-[-1]"
+                  />
+                  {isCapturing && <div className="scanner-line" />}
+                  <svg
+                    className="absolute top-0 left-0 w-full h-full -rotate-90 transform"
+                    viewBox="0 0 100 100"
+                  >
+                    <circle
+                      className="text-primary/10"
+                      strokeWidth="4"
+                      stroke="currentColor"
+                      fill="transparent"
+                      r="48"
+                      cx="50"
+                      cy="50"
+                    />
+                    <circle
+                      className="text-primary transition-all duration-300"
+                      strokeWidth="4"
+                      strokeDasharray={300}
+                      strokeDashoffset={300 - (capturedFrames / REQUIRED_FRAMES) * 300}
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="transparent"
+                      r="48"
+                      cx="50"
+                      cy="50"
+                    />
+                  </svg>
+                </>
+              )}
+            </div>
+
+            {/* Guidance Message */}
+            <div className="text-center text-sm text-foreground/80 bg-card p-3 rounded-xl">
+              <AlertCircle className="inline-block w-4 h-4 mr-2" />
+              {guidanceMessage}
+            </div>
+
+            <div className="flex justify-center space-x-4">
+              {!isCapturing && capturedFrames === 0 && !webcamError && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={startCapturing}
+                  className="btn-modern"
+                >
+                  <Camera className="w-5 h-5 mr-2" />
+                  Start Capture
+                </motion.button>
+              )}
+
+              {capturedFrames === REQUIRED_FRAMES && (
+                <>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={retakeCapture}
+                    className="btn-outline-modern"
+                  >
+                    <RotateCw className="w-5 h-5 mr-2" />
+                    Retake
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleNext}
+                    className="btn-modern"
+                  >
+                    <Save className="w-5 h-5 mr-2" />
+                    Save & Continue
+                  </motion.button>
+                </>
+              )}
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-4 text-center">
+            <div className="w-24 h-24 mx-auto bg-success/20 rounded-full flex items-center justify-center">
+              <Activity className="w-12 h-12 text-success" />
+            </div>
+            <h3 className="text-xl font-semibold">Face Data Captured Successfully!</h3>
+            <p className="text-foreground/60">
+              Your face data has been securely recorded. Click complete to finish the registration.
+            </p>
+          </div>
+        );
     }
   };
 
@@ -135,150 +344,33 @@ export const SignupPage = () => {
           animate={{ scale: 1 }}
           transition={{ duration: 0.3 }}
         >
-          {/* Logo Section */}
           <div className="flex items-center justify-center mb-8">
             <div className="gradient-border p-3 rounded-xl">
               <Activity className="h-10 w-10 text-gradient animate-pulse-slow" />
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-center mb-6 text-gradient">Create Account</h2>
+          <h2 className="text-2xl font-bold text-center mb-6 text-gradient">
+            Create Account
+          </h2>
 
-          {/* Step-by-step forms */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {step === 1 && (
-              <div>
-                <label className="text-sm font-medium text-foreground/80">Full Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="w-full bg-card pl-4 pr-4 py-2 rounded-xl"
-                  placeholder="Enter your name"
-                />
-                <label className="text-sm font-medium text-foreground/80">Registration Number</label>
-                <input
-                  type="text"
-                  name="registrationNumber"
-                  value={formData.registrationNumber}
-                  onChange={handleInputChange}
-                  className="w-full bg-card pl-4 pr-4 py-2 rounded-xl"
-                  placeholder="Enter Registration Number"
-                />
-                <button onClick={handleNextStep} className="btn-glow w-full mt-4">
-                  Next
-                </button>
-              </div>
-            )}
+          <ProgressSteps currentStep={step} totalSteps={4} />
 
-            {step === 2 && (
-              <div>
-                <label className="text-sm font-medium text-foreground/80">Intake</label>
-                <input
-                  type="text"
-                  name="intake"
-                  value={formData.intake}
-                  onChange={handleInputChange}
-                  className="w-full bg-card pl-4 pr-4 py-2 rounded-xl"
-                  placeholder="Enter Intake"
-                />
-                <label className="text-sm font-medium text-foreground/80">Stream</label>
-                <input
-                  type="text"
-                  name="stream"
-                  value={formData.stream}
-                  onChange={handleInputChange}
-                  className="w-full bg-card pl-4 pr-4 py-2 rounded-xl"
-                  placeholder="Enter Stream"
-                />
-                <label className="text-sm font-medium text-foreground/80">Address</label>
-                <textarea
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  className="w-full bg-card pl-4 pr-4 py-2 rounded-xl"
-                  placeholder="Enter Address"
-                />
-                <button onClick={handleNextStep} className="btn-glow w-full mt-4">
-                  Next
-                </button>
-              </div>
-            )}
+          <form onSubmit={handleNext} className="space-y-6">
+            {renderStep()}
 
-            {step === 3 && (
-              <div>
-                <label className="text-sm font-medium text-foreground/80">Contact Number</label>
-                <input
-                  type="text"
-                  name="contactNumber"
-                  value={formData.contactNumber}
-                  onChange={handleInputChange}
-                  className="w-full bg-card pl-4 pr-4 py-2 rounded-xl"
-                  placeholder="Enter Contact Number"
-                />
-                <label className="text-sm font-medium text-foreground/80">Date of Birth</label>
-                <input
-                  type="date"
-                  name="dob"
-                  value={formData.dob}
-                  onChange={handleInputChange}
-                  className="w-full bg-card pl-4 pr-4 py-2 rounded-xl"
-                />
-                <button onClick={handleNextStep} className="btn-glow w-full mt-4">
-                  Next
-                </button>
-              </div>
-            )}
+            {error && <p className="text-error text-sm text-center">{error}</p>}
 
-            {step === 4 && (
-              <div>
-                 {/* Circular Video */}
-            <div className="circular-video-container mb-4">
-              <video ref={videoRef} className="circular-video" autoPlay muted />
-            </div>
-
-                <p className="text-center text-foreground/80 mt-2">{instructions}</p>
-
-                {/* Capture Button */}
-                {showCaptureButton && (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleStartCamera}
-                    className="btn-glow w-full mt-4"
-                  >
-                    <Camera className="h-5 w-5 text-foreground mr-2" />
-                    Capture 360 Degree View
-                  </motion.button>
-                )}
-
-                {capturedVideo && (
-                  <>
-                    <motion.button onClick={handleRetakeVideo} className="btn-glow w-full mt-4">
-                      Retake Video
-                    </motion.button>
-                    <motion.button onClick={handleSubmit} className="btn-glow w-full mt-4">
-                      Create Account
-                    </motion.button>
-                  </>
-                )}
-              </div>
+            {step !== 3 && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                type="submit"
+                className="btn-modern w-full"
+              >
+                {step === 4 ? 'Complete Registration' : 'Continue'}
+              </motion.button>
             )}
           </form>
 
-          {/* Error message */}
-          {signupError && <p className="text-error text-sm text-center">{signupError}</p>}
-
-          {/* Toggle to login */}
-          <p className="mt-4 text-center text-sm text-foreground/60">
-            Already have an account?{' '}
-            <span onClick={() => console.log('Switch to login mode')} className="text-primary hover:text-primary/80 transition-colors">
-              Sign In
-            </span>
-          </p>
-        </motion.div>
-      </div>
-    </motion.div>
-  );
-};
+     

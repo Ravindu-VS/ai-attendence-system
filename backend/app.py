@@ -1,71 +1,61 @@
-from flask import Flask, request, jsonify
+from flask import Flask, Response
 import cv2
-import os
-import numpy as np
-from werkzeug.utils import secure_filename
-from datetime import datetime
+import face_recognition
 
 app = Flask(__name__)
 
-# Path to save uploaded videos
-UPLOAD_FOLDER = 'uploads'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# Initialize the webcam
+video_capture = cv2.VideoCapture(0)
 
-# OpenCV face detector
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Known face encodings for recognition (you should add your known faces here)
+known_face_encodings = []
+known_face_names = []
 
-def train_model(video_file_path):
-    # Read video
-    video_capture = cv2.VideoCapture(video_file_path)
-    face_samples = []
-    ids = []
+# Example of loading a sample image and getting the face encoding (You need to do this with your dataset)
+# image_of_person = face_recognition.load_image_file("person.jpg")
+# person_encoding = face_recognition.face_encodings(image_of_person)[0]
+# known_face_encodings.append(person_encoding)
+# known_face_names.append("Person Name")
 
+def gen_frames():
     while True:
         ret, frame = video_capture.read()
         if not ret:
             break
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+        # Convert image from BGR (OpenCV format) to RGB (face_recognition format)
+        rgb_frame = frame[:, :, ::-1]
 
-        for (x, y, w, h) in faces:
-            face = gray[y:y+h, x:x+w]
-            face_samples.append(face)
-            ids.append(1)
+        # Get face locations and encodings
+        face_locations = face_recognition.face_locations(rgb_frame)
+        face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
-    video_capture.release()
+        for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
+            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+            name = "Unknown"
 
-    # Use OpenCV LBPH face recognizer for training the model
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
-    recognizer.train(face_samples, np.array(ids))
+            if True in matches:
+                first_match_index = matches.index(True)
+                name = known_face_names[first_match_index]
 
-    # Save the model
-    recognizer.save('face_model.yml')
+            # Draw a rectangle around the face and label it with the name
+            cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+            cv2.putText(frame, name, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
 
-@app.route('/signup', methods=['POST'])
-def signup():
-    # Collect form data
-    name = request.form['name']
-    registration_number = request.form['registrationNumber']
-    intake = request.form['intake']
-    stream = request.form['stream']
-    address = request.form['address']
-    contact_number = request.form['contactNumber']
-    dob = request.form['dob']
+        # Encode the frame as JPEG
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
 
-    # Get the video file from the form data
-    video = request.files['video']
-    filename = secure_filename(video.filename)
-    video_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    video.save(video_path)
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
-    # Train the model with the captured video
-    train_model(video_path)
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-    # Save the user data to the database (example, MongoDB or other databases)
-    # You can also save the path to the model here, or other relevant details.
-    
-    return jsonify({'message': 'User registered and face model trained successfully'}), 201
+@app.route('/')
+def index():
+    return "Face Recognition Server Running!"
 
 if __name__ == '__main__':
     app.run(debug=True, threaded=True)

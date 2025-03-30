@@ -1,0 +1,81 @@
+/* SignupPage.css */
+
+/* General styles for the circular frame and logo */
+.circular-video-container {
+    width: 385px;
+    height: 385px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 5px solid rgba(34, 193, 195, 0.2); /* Border around the circle */
+    position: relative;
+  }
+  
+  .circular-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures the video fits the circle */
+    transform: scaleX(-1); /* Mirror the video */
+  }
+  
+  .logo {
+    display: block;
+    margin: 0 auto 20px;
+    max-width: 80px; /* Ensure the logo size is appropriate */
+  }
+  
+  /* Custom button and text style */
+  .btn-glow {
+    background: linear-gradient(90deg, rgba(34,193,195,1) 0%, rgba(253,187,45,1) 100%);
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: bold;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+  }
+  
+  .btn-glow:hover {
+    transform: scale(1.05);
+  }
+  
+  /* Additional form styling */
+  .glassmorphism {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+  }
+  
+  input, textarea {
+    border-radius: 10px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+  
+  input:focus, textarea:focus {
+    border-color: rgba(34, 193, 195, 0.8);
+    background: rgba(34, 193, 195, 0.1);
+  }
+  
+  /* Error text */
+  .text-error {
+    color: red;
+    font-size: 12px;
+  }
+  
+  /* Adjustments for button hover and transitions */
+  .btn-modern {
+    background-color: #4caf50;
+    border-radius: 12px;
+    padding: 12px;
+    font-weight: bold;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+  }
+  
+  .btn-modern:hover {
+    transform: scale(1.05);
+  }
+  
